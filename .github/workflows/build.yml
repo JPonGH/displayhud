@@ -1,0 +1,38 @@
+# Display HUD CI: build the package, run headless tests, validate the app bundle.
+#
+# Only headless-safe tests run here. Window-backed HUD tests are gated behind
+# DISPLAY_HUD_WINDOW_TESTS=1 and live hardware tests are not in this repo,
+# so plain `swift test` never touches displays, audio, input, or windows.
+name: build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: macos-26
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Show toolchain
+        run: swift --version
+      - name: Build (debug)
+        run: swift build
+      - name: Run headless tests
+        run: swift test
+      - name: Build and ad-hoc sign app bundle
+        run: ./scripts/build-app.sh
+        env:
+          DISPLAY_HUD_BUILD_ROOT: ${{ runner.temp }}/displayhud-build
+      - name: Upload app bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Display-HUD-app
+          path: ${{ runner.temp }}/displayhud-build/Display HUD.app
+          if-no-files-found: error
